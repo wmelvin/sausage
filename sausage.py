@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-AppOptions = namedtuple("AppOptions", "doc_path, programs")
+AppOptions = namedtuple("AppOptions", "doc_path, programs, indent_level")
 
 
 def get_opts(argv) -> AppOptions:
@@ -30,7 +30,7 @@ def get_opts(argv) -> AppOptions:
         + "(section marked by lines with triple-backticks before and after), "
         + "with 'usage: (program_name)' in the block, for each program from "
         + "which usage text is to be inserted. A modified copy of the "
-        + "document is produced. The original document is not affected."
+        + "document is produced. The original document is not affected.",
     )
 
     ap.add_argument(
@@ -41,6 +41,15 @@ def get_opts(argv) -> AppOptions:
         + "the help/usage message. Each must be a single executable command "
         + "with no arguments. Each must support the -h (help) command-line "
         + "argument.",
+    )
+
+    ap.add_argument(
+        "--indent",
+        dest="n_spaces",
+        type=int,
+        default=0,
+        action="store",
+        help="Indent the inserted help/usage text by this many spaces.",
     )
 
     args = ap.parse_args()
@@ -54,14 +63,13 @@ def get_opts(argv) -> AppOptions:
             usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
             prog_list.append((cmd, usage_tag))
 
-    opts = AppOptions(doc_path, prog_list)
+    opts = AppOptions(doc_path, prog_list, args.n_spaces)
 
     return opts
 
 
-def get_help_text(run_cmd) -> str:
+def get_help_text(run_cmd):
     print("\nGetting usage (help) message from command.")
-    # print(f"Running: {run_cmd}")
     cmds = run_cmd.split()
     cmds.append("-h")
     print(f"Run process: {cmds}")
@@ -72,12 +80,24 @@ def get_help_text(run_cmd) -> str:
             stderr=subprocess.STDOUT,
             text=True,
         )
-        # assert result.returncode == 0
-        s = result.stdout.strip()
+        # s = result.stdout.strip()
+        s = result.stdout
     except Exception as e:
+        # TODO: What exceptions to expect?
         raise e
-
     return s
+
+
+def get_help_lines(run_cmd, indent_level):
+    text = get_help_text(run_cmd)
+    spaces = " " * indent_level
+    lines = []
+    for line in text.split("\n"):
+        if 0 == len(line):
+            lines.append(line)
+        else:
+            lines.append(f"{spaces}{line}")
+    return lines
 
 
 def index_usage_section(doc_lines, doc_path, usage_tag):
@@ -102,6 +122,7 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
         print(f"No reference to '{usage_tag}' found in document.")
         print("Cannot proceed.")
         sys.exit(1)
+        # TODO: Print warning and return (None, None) instead of exiting.
 
     if 1 < len(usage_lines):
         print(f"More than one reference to '{usage_tag}' found in document.")
@@ -137,7 +158,7 @@ def write_output(opts: AppOptions, out_lines):
 
     assert not out_path.exists()
 
-    print(f"\nWriting '{out_path}'")
+    print(f"\nSaving '{out_path}'")
     with open(out_path, "w") as out_file:
         for s in out_lines:
             out_file.write(f"{s}\n")
@@ -149,24 +170,27 @@ def main(argv):
     print(f"\nReading '{opts.doc_path}'")
 
     with open(opts.doc_path, "r") as f:
-        doc_lines = [s.rstrip() for s in f.readlines()]
+        orig_lines = [s.rstrip() for s in f.readlines()]
+
+    doc_lines = orig_lines[:]
 
     for run_cmd, usage_tag in opts.programs:
 
-        ix_before, ix_after = index_usage_section(
-            doc_lines, opts.doc_path, usage_tag
-        )
+        ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
+        # TODO: Check ia and ib for None.
 
-        a = doc_lines[: ix_before + 1]
-        b = doc_lines[ix_after:]
+        help_lines = get_help_lines(run_cmd, opts.indent_level)
+        a = doc_lines[: ia + 1]
+        b = doc_lines[ib:]
+        doc_lines = a + help_lines + b
 
-        help_text = get_help_text(run_cmd)
+    (Path.cwd() / "debug1.txt").write_text("\n".join(orig_lines))
+    (Path.cwd() / "debug2.txt").write_text("\n".join(doc_lines))
 
-        indent = " " * 4
-
-        doc_lines = a + [f"{indent}{t}" for t in help_text.split("\n")] + b
-
-    write_output(opts, doc_lines)
+    if orig_lines == doc_lines:
+        print("\nNo changes to document. Nothing to save.\n")
+    else:
+        write_output(opts, doc_lines)
 
 
 if __name__ == "__main__":
