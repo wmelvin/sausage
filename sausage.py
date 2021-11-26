@@ -3,41 +3,44 @@
 from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 import argparse
 import subprocess
 import sys
 
 
-AppOptions = namedtuple("AppOptions", "doc_path, cmd_list")
-
-CmdAttr = namedtuple("CmdAttr", "command, usage_tag")
+AppOptions = namedtuple("AppOptions", "doc_path, programs")
 
 
 def get_opts(argv) -> AppOptions:
 
     ap = argparse.ArgumentParser(
-        description="Command-line utility to capture usage (help) message and "
-        + "insert it into a copy of a Markdown document (perhaps README.md)."
+        description="Command-line utility to capture the help/usage message "
+        + "from a program that has a command-line interface. The help text is "
+        + "then inserted into a copy of a Markdown document (perhaps "
+        + "a README.md file). More than one program may be specified if the "
+        + "document includes sections for each."
     )
 
     ap.add_argument(
         "doc_file",
         action="store",
         help="Name of the Markdown document file in which to insert the help "
-        + "message text. The document must already have fenced code blocks, "
-        + "with 'usage: (command)' in the block, for each command from which "
-        + "usage text is to be inserted.",
+        + "message text. The document must already have a fenced code block "
+        + "(section marked by lines with triple-backticks before and after), "
+        + "with 'usage: (program_name)' in the block, for each program from "
+        + "which usage text is to be inserted. A modified copy of the "
+        + "document is produced. The original document is not affected."
     )
 
     ap.add_argument(
         "run_cmds",
         nargs="*",
         action="store",
-        help="One or more commands from which to capture the usage (help) "
-        + "message. Each must be a single executable command with no "
-        + "arguments. Each must support the -h (help) command-line argument.",
+        help="One or more commands to launch programs from which to capture "
+        + "the help/usage message. Each must be a single executable command "
+        + "with no arguments. Each must support the -h (help) command-line "
+        + "argument.",
     )
 
     args = ap.parse_args()
@@ -45,13 +48,13 @@ def get_opts(argv) -> AppOptions:
     doc_path = Path(args.doc_file).expanduser().resolve()
     assert doc_path.exists()
 
-    cmd_list: List[CmdAttr] = []
+    prog_list = []
     for cmd in args.run_cmds:
         if 0 < len(cmd):
             usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
-            cmd_list.append(CmdAttr(cmd, usage_tag))
+            prog_list.append((cmd, usage_tag))
 
-    opts = AppOptions(doc_path, cmd_list)
+    opts = AppOptions(doc_path, prog_list)
 
     return opts
 
@@ -148,16 +151,16 @@ def main(argv):
     with open(opts.doc_path, "r") as f:
         doc_lines = [s.rstrip() for s in f.readlines()]
 
-    for cmd_attr in opts.cmd_list:
+    for run_cmd, usage_tag in opts.programs:
 
         ix_before, ix_after = index_usage_section(
-            doc_lines, opts.doc_path, cmd_attr.usage_tag
+            doc_lines, opts.doc_path, usage_tag
         )
 
         a = doc_lines[: ix_before + 1]
         b = doc_lines[ix_after:]
 
-        help_text = get_help_text(cmd_attr.command)
+        help_text = get_help_text(run_cmd)
 
         indent = " " * 4
 
