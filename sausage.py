@@ -13,6 +13,8 @@ AppOptions = namedtuple(
     "AppOptions", "doc_path, programs, indent_level, diff_tool"
 )
 
+warnings = []
+
 
 def get_opts(argv) -> AppOptions:
 
@@ -144,16 +146,18 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
             usage_lines.append(ix)
 
     if 0 == len(usage_lines):
-        print(f"WARNING: No reference to '{usage_tag}' found in document.")
-        print("Cannot process help/usage for this program.")
+        warnings.append(
+            f"WARNING: No reference to '{usage_tag}' found in document."
+        )
+        warnings.append("Cannot process help/usage for this program.")
         return None, None
 
     if 1 < len(usage_lines):
-        print(
+        warnings.append(
             f"WARNING: More than one reference to '{usage_tag}' "
             + "found in document."
         )
-        print("Cannot process help/usage for this program.")
+        warnings.append("Cannot process help/usage for this program.")
         return None, None
 
     tbt_before = -1
@@ -166,11 +170,11 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
             tbt_after = x
 
     if tbt_before < 0 or tbt_after < 0:
-        print(
+        warnings.append(
             "Could not find surrounding triple-backticks to indicate fenced "
             + f"code block for '{usage_tag}'."
         )
-        print("Cannot process help/usage for this program.")
+        warnings.append("Cannot process help/usage for this program.")
         return None, None
 
     return tbt_before, tbt_after
@@ -222,6 +226,12 @@ def main(argv):
         file_name = write_output(opts, doc_lines)
         if opts.diff_tool is not None:
             run_compare(opts.diff_tool, str(opts.doc_path), file_name)
+
+    if 0 < len(warnings):
+        for warning in warnings:
+            print(warning)
+
+    return 0
 
 
 if __name__ == "__main__":
