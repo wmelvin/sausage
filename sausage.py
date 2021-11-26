@@ -69,7 +69,6 @@ def get_opts(argv) -> AppOptions:
     args = ap.parse_args()
 
     doc_path = Path(args.doc_file).expanduser().resolve()
-    assert doc_path.exists()
 
     prog_list = []
     for cmd in args.run_cmds:
@@ -203,6 +202,9 @@ def main(argv):
     opts = get_opts(argv)
 
     print(f"\nReading '{opts.doc_path}'")
+    if not opts.doc_path.exists():
+        sys.stderr.write(f"\nERROR: Cannot find '{opts.doc_path}'\n")
+        sys.exit(1)
 
     with open(opts.doc_path, "r") as f:
         orig_lines = [s.rstrip() for s in f.readlines()]
