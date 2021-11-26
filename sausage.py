@@ -9,7 +9,9 @@ import subprocess
 import sys
 
 
-AppOptions = namedtuple("AppOptions", "doc_path, programs, indent_level")
+AppOptions = namedtuple(
+    "AppOptions", "doc_path, programs, indent_level, diff_tool"
+)
 
 
 def get_opts(argv) -> AppOptions:
@@ -52,6 +54,16 @@ def get_opts(argv) -> AppOptions:
         help="Indent the inserted help/usage text by this many spaces.",
     )
 
+    ap.add_argument(
+        "--compare-cmd",
+        dest="diff_cmd",
+        action="store",
+        help="Command to launch a file comparison tool. The tool must take "
+        + "the names of two files to compare as the first two command-line "
+        + "arguments. This command will be run to compare the original "
+        + "document to the new modified version.",
+    )
+
     args = ap.parse_args()
 
     doc_path = Path(args.doc_file).expanduser().resolve()
@@ -63,9 +75,23 @@ def get_opts(argv) -> AppOptions:
             usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
             prog_list.append((cmd, usage_tag))
 
-    opts = AppOptions(doc_path, prog_list, args.n_spaces)
+    opts = AppOptions(doc_path, prog_list, args.n_spaces, args.diff_cmd)
 
     return opts
+
+
+def run_compare(run_cmd, left_file, right_file):
+    print(f"\nCompare\n  L: {left_file}\n  R: {right_file}\n")
+    cmds = [run_cmd, left_file, right_file]
+    print(f"Run process: {cmds}")
+    try:
+        result = subprocess.run(
+            cmds, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+    except Exception as e:
+        # TODO: What exceptions to expect/handle?
+        raise e
+    print(f"Process return code: {result.returncode}")
 
 
 def get_help_text(run_cmd):
@@ -123,7 +149,10 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
         return None, None
 
     if 1 < len(usage_lines):
-        print(f"WARNING: More than one reference to '{usage_tag}' found in document.")
+        print(
+            f"WARNING: More than one reference to '{usage_tag}' "
+            + "found in document."
+        )
         print("Cannot process help/usage for this program.")
         return None, None
 
@@ -148,9 +177,10 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
 
 
 def write_output(opts: AppOptions, out_lines):
-    #  Write to a copy of the source document with a date_time tag added
-    #  to the file name. I don't trust this enough yet to directly modify
-    #  the document. For now, using a diff tool to check and apply chanegs.
+    """
+    Writes the modified document lines to a new file with "MODIFIED" and
+    a date_time tag added to the file name. Returns the file name.
+    """
 
     ds = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_name = f"{opts.doc_path.stem}_MODIFIED_{ds}{opts.doc_path.suffix}"
@@ -162,6 +192,7 @@ def write_output(opts: AppOptions, out_lines):
     with open(out_path, "w") as out_file:
         for s in out_lines:
             out_file.write(f"{s}\n")
+    return str(out_path)
 
 
 def main(argv):
@@ -175,7 +206,6 @@ def main(argv):
     doc_lines = orig_lines[:]
 
     for run_cmd, usage_tag in opts.programs:
-
         ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
         if ia is not None:
             help_lines = get_help_lines(run_cmd, opts.indent_level)
@@ -189,7 +219,9 @@ def main(argv):
     if orig_lines == doc_lines:
         print("\nNo changes to document. Nothing to save.\n")
     else:
-        write_output(opts, doc_lines)
+        file_name = write_output(opts, doc_lines)
+        if opts.diff_tool is not None:
+            run_compare(opts.diff_tool, str(opts.doc_path), file_name)
 
 
 if __name__ == "__main__":
