@@ -80,10 +80,9 @@ def get_help_text(run_cmd):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        # s = result.stdout.strip()
-        s = result.stdout
+        s = result.stdout.rstrip()
     except Exception as e:
-        # TODO: What exceptions to expect?
+        # TODO: What exceptions to expect/handle?
         raise e
     return s
 
@@ -119,15 +118,14 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
             usage_lines.append(ix)
 
     if 0 == len(usage_lines):
-        print(f"No reference to '{usage_tag}' found in document.")
-        print("Cannot proceed.")
-        sys.exit(1)
-        # TODO: Print warning and return (None, None) instead of exiting.
+        print(f"WARNING: No reference to '{usage_tag}' found in document.")
+        print("Cannot process help/usage for this program.")
+        return None, None
 
     if 1 < len(usage_lines):
-        print(f"More than one reference to '{usage_tag}' found in document.")
-        print("Cannot proceed.")
-        sys.exit(1)
+        print(f"WARNING: More than one reference to '{usage_tag}' found in document.")
+        print("Cannot process help/usage for this program.")
+        return None, None
 
     tbt_before = -1
     tbt_after = -1
@@ -139,10 +137,12 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
             tbt_after = x
 
     if tbt_before < 0 or tbt_after < 0:
-        print("Could not find surrounding triple-backticks to indicate code")
-        print("section for usage text.")
-        print("Cannot proceed.")
-        sys.exit(1)
+        print(
+            "Could not find surrounding triple-backticks to indicate fenced "
+            + f"code block for '{usage_tag}'."
+        )
+        print("Cannot process help/usage for this program.")
+        return None, None
 
     return tbt_before, tbt_after
 
@@ -177,15 +177,14 @@ def main(argv):
     for run_cmd, usage_tag in opts.programs:
 
         ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
-        # TODO: Check ia and ib for None.
+        if ia is not None:
+            help_lines = get_help_lines(run_cmd, opts.indent_level)
+            a = doc_lines[: ia + 1]
+            b = doc_lines[ib:]
+            doc_lines = a + help_lines + b
 
-        help_lines = get_help_lines(run_cmd, opts.indent_level)
-        a = doc_lines[: ia + 1]
-        b = doc_lines[ib:]
-        doc_lines = a + help_lines + b
-
-    (Path.cwd() / "debug1.txt").write_text("\n".join(orig_lines))
-    (Path.cwd() / "debug2.txt").write_text("\n".join(doc_lines))
+    # (Path.cwd() / "DEBUG-A.txt").write_text("\n".join(orig_lines))
+    # (Path.cwd() / "DEBUG-B.txt").write_text("\n".join(doc_lines))
 
     if orig_lines == doc_lines:
         print("\nNo changes to document. Nothing to save.\n")
