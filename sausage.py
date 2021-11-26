@@ -9,6 +9,15 @@ import subprocess
 import sys
 
 
+mod_version = "211126.1"
+
+pub_version = "0.1.dev1"
+
+app_title = (
+    "sausage.py - something about usage - "
+    + f"version {pub_version} (mod {mod_version})"
+)
+
 AppOptions = namedtuple(
     "AppOptions", "doc_path, programs, indent_level, diff_tool"
 )
@@ -201,10 +210,13 @@ def write_output(opts: AppOptions, out_lines):
 def main(argv):
     opts = get_opts(argv)
 
+    print(f"\n{app_title}\n")
+
     print(f"\nReading '{opts.doc_path}'")
+
     if not opts.doc_path.exists():
         sys.stderr.write(f"\nERROR: Cannot find '{opts.doc_path}'\n")
-        sys.exit(1)
+        return 1
 
     with open(opts.doc_path, "r") as f:
         orig_lines = [s.rstrip() for s in f.readlines()]
@@ -223,7 +235,7 @@ def main(argv):
     # (Path.cwd() / "DEBUG-B.txt").write_text("\n".join(doc_lines))
 
     if orig_lines == doc_lines:
-        print("\nNo changes to document. Nothing to save.\n")
+        print("\n*** Existing help/usage text is current. Nothing to do.\n")
     else:
         file_name = write_output(opts, doc_lines)
         if opts.diff_tool is not None:
