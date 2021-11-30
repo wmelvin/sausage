@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-mod_version = "211126.1"
+mod_version = "211130.1"
 
 pub_version = "0.1.dev1"
 
@@ -75,7 +75,7 @@ def get_opts(argv) -> AppOptions:
         + "document to the new modified version.",
     )
 
-    args = ap.parse_args()
+    args = ap.parse_args(argv[1:])
 
     doc_path = Path(args.doc_file).expanduser().resolve()
 
@@ -148,9 +148,12 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
 
     for ix, line in enumerate(doc_lines):
         s = line.strip()
+
         if s.startswith(tbt) and not (6 < len(s) and s.endswith(tbt)):
             tbt_lines.append(ix)
-        if usage_tag in s.lower():
+
+        #  Match on usage_tag is case-insensitive.
+        if usage_tag.lower() in s.lower():
             usage_lines.append(ix)
 
     if 0 == len(usage_lines):
