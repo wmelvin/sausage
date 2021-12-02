@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-mod_version = "211130.1"
+mod_version = "211202.1"
 
 pub_version = "0.1.dev1"
 
@@ -96,7 +96,10 @@ def run_compare(run_cmd, left_file, right_file):
     print(f"Run process: {cmds}")
     try:
         result = subprocess.run(
-            cmds, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            cmds,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True
         )
     except Exception as e:
         # TODO: What exceptions to expect/handle?
@@ -114,7 +117,7 @@ def get_help_text(run_cmd):
             cmds,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
+            universal_newlines=True,
         )
         s = result.stdout.rstrip()
     except Exception as e:
