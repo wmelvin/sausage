@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-mod_version = "211202.1"
+mod_version = "211206.1"
 
 pub_version = "0.1.dev1"
 
@@ -19,7 +19,7 @@ app_title = (
 )
 
 AppOptions = namedtuple(
-    "AppOptions", "doc_path, programs, indent_level, diff_tool"
+    "AppOptions", "doc_path, programs, indent_level, diff_tool, usage_only"
 )
 
 warnings = []
@@ -75,6 +75,14 @@ def get_opts(argv) -> AppOptions:
         + "document to the new modified version.",
     )
 
+    ap.add_argument(
+        "--usage-only",
+        dest="usage_only",
+        action="store_true",
+        help="Exclude any lines in the help message before the text 'usage:' "
+        + "appears (not case-sensitive).",
+    )
+
     args = ap.parse_args(argv[1:])
 
     doc_path = Path(args.doc_file).expanduser().resolve()
@@ -85,7 +93,9 @@ def get_opts(argv) -> AppOptions:
             usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
             prog_list.append((cmd, usage_tag))
 
-    opts = AppOptions(doc_path, prog_list, args.n_spaces, args.diff_cmd)
+    opts = AppOptions(
+        doc_path, prog_list, args.n_spaces, args.diff_cmd, args.usage_only
+    )
 
     return opts
 
@@ -99,7 +109,7 @@ def run_compare(run_cmd, left_file, right_file):
             cmds,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            universal_newlines=True
+            universal_newlines=True,
         )
     except Exception as e:
         # TODO: What exceptions to expect/handle?
@@ -126,15 +136,19 @@ def get_help_text(run_cmd):
     return s
 
 
-def get_help_lines(run_cmd, indent_level):
+def get_help_lines(run_cmd, indent_level, usage_only):
     text = get_help_text(run_cmd)
     spaces = " " * indent_level
     lines = []
+    usage_found = not usage_only
     for line in text.split("\n"):
-        if 0 == len(line):
-            lines.append(line)
-        else:
-            lines.append(f"{spaces}{line}")
+        if not usage_found:
+            usage_found = "usage:" in line.lower()
+        if usage_found:
+            if 0 == len(line):
+                lines.append(line)
+            else:
+                lines.append(f"{spaces}{line}")
     return lines
 
 
@@ -214,9 +228,9 @@ def write_output(opts: AppOptions, out_lines):
 
 
 def main(argv):
-    opts = get_opts(argv)
-
     print(f"\n{app_title}\n")
+
+    opts = get_opts(argv)
 
     print(f"\nReading '{opts.doc_path}'")
 
@@ -232,7 +246,9 @@ def main(argv):
     for run_cmd, usage_tag in opts.programs:
         ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
         if ia is not None:
-            help_lines = get_help_lines(run_cmd, opts.indent_level)
+            help_lines = get_help_lines(
+                run_cmd, opts.indent_level, opts.usage_only
+            )
             a = doc_lines[: ia + 1]
             b = doc_lines[ib:]
             doc_lines = a + help_lines + b

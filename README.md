@@ -9,6 +9,7 @@
 
 ```
 usage: sausage.py [-h] [--indent N_SPACES] [--compare-cmd DIFF_CMD]
+                  [--usage-only]
                   doc_file [run_cmds ...]
 
 Command-line utility to capture the help/usage message from a program that has
@@ -40,6 +41,8 @@ optional arguments:
                         first two command-line arguments. This command will be
                         run to compare the original document to the new
                         modified version.
+  --usage-only          Exclude any lines in the help message before the text
+                        'usage:' appears (not case-sensitive).
 ```
 
 ## Reference ##
