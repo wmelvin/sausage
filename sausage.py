@@ -9,13 +9,13 @@ import subprocess
 import sys
 
 
-mod_version = "211206.1"
+mod_version = "220914.1"
 
 pub_version = "0.1.dev1"
 
 app_title = (
     "sausage.py - something about usage - "
-    + f"version {pub_version} (mod {mod_version})"
+    f"version {pub_version} (mod {mod_version})"
 )
 
 AppOptions = namedtuple(
@@ -29,21 +29,21 @@ def get_opts(argv) -> AppOptions:
 
     ap = argparse.ArgumentParser(
         description="Command-line utility to capture the help/usage message "
-        + "from a program that has a command-line interface. The help text is "
-        + "then inserted into a copy of a Markdown document (perhaps "
-        + "a README.md file). More than one program may be specified if the "
-        + "document includes sections for each."
+        "from a program that has a command-line interface. The help text is "
+        "then inserted into a copy of a Markdown document (perhaps "
+        "a README.md file). More than one program may be specified if the "
+        "document includes sections for each."
     )
 
     ap.add_argument(
         "doc_file",
         action="store",
         help="Name of the Markdown document file in which to insert the help "
-        + "message text. The document must already have a fenced code block "
-        + "(section marked by lines with triple-backticks before and after), "
-        + "with 'usage: (program_name)' in the block, for each program from "
-        + "which usage text is to be inserted. A modified copy of the "
-        + "document is produced. The original document is not affected.",
+        "message text. The document must already have a fenced code block "
+        "(section marked by lines with triple-backticks before and after), "
+        "with 'usage: (program_name)' in the block, for each program from "
+        "which usage text is to be inserted. A modified copy of the "
+        "document is produced. The original document is not affected.",
     )
 
     ap.add_argument(
@@ -51,9 +51,9 @@ def get_opts(argv) -> AppOptions:
         nargs="*",
         action="store",
         help="One or more commands to launch programs from which to capture "
-        + "the help/usage message. Each must be a single executable command "
-        + "with no arguments. Each must support the -h (help) command-line "
-        + "argument.",
+        "the help/usage message. Each must be a single executable command "
+        "with no arguments. Each must support the -h (help) command-line "
+        "argument.",
     )
 
     ap.add_argument(
@@ -70,9 +70,9 @@ def get_opts(argv) -> AppOptions:
         dest="diff_cmd",
         action="store",
         help="Command to launch a file comparison tool. The tool must take "
-        + "the names of two files to compare as the first two command-line "
-        + "arguments. This command will be run to compare the original "
-        + "document to the new modified version.",
+        "the names of two files to compare as the first two command-line "
+        "arguments. This command will be run to compare the original "
+        "document to the new modified version.",
     )
 
     ap.add_argument(
@@ -80,7 +80,7 @@ def get_opts(argv) -> AppOptions:
         dest="usage_only",
         action="store_true",
         help="Exclude any lines in the help message before the text 'usage:' "
-        + "appears (not case-sensitive).",
+        "appears (not case-sensitive).",
     )
 
     args = ap.parse_args(argv[1:])
@@ -89,7 +89,7 @@ def get_opts(argv) -> AppOptions:
 
     prog_list = []
     for cmd in args.run_cmds:
-        if 0 < len(cmd):
+        if cmd:
             usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
             prog_list.append((cmd, usage_tag))
 
@@ -145,10 +145,10 @@ def get_help_lines(run_cmd, indent_level, usage_only):
         if not usage_found:
             usage_found = "usage:" in line.lower()
         if usage_found:
-            if 0 == len(line):
-                lines.append(line)
-            else:
+            if line:
                 lines.append(f"{spaces}{line}")
+            else:
+                lines.append(line)
     return lines
 
 
@@ -173,7 +173,7 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
         if usage_tag.lower() in s.lower():
             usage_lines.append(ix)
 
-    if 0 == len(usage_lines):
+    if not usage_lines:
         warnings.append(
             f"WARNING: No reference to '{usage_tag}' found in document."
         )
@@ -183,7 +183,7 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
     if 1 < len(usage_lines):
         warnings.append(
             f"WARNING: More than one reference to '{usage_tag}' "
-            + "found in document."
+            "found in document."
         )
         warnings.append("Cannot process help/usage for this program.")
         return None, None
@@ -200,7 +200,7 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
     if tbt_before < 0 or tbt_after < 0:
         warnings.append(
             "Could not find surrounding triple-backticks to indicate fenced "
-            + f"code block for '{usage_tag}'."
+            f"code block for '{usage_tag}'."
         )
         warnings.append("Cannot process help/usage for this program.")
         return None, None
@@ -263,7 +263,7 @@ def main(argv):
         if opts.diff_tool is not None:
             run_compare(opts.diff_tool, str(opts.doc_path), file_name)
 
-    if 0 < len(warnings):
+    if warnings:
         for warning in warnings:
             print(warning)
 
