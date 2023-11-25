@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-mod_version = "220914.1"
+mod_version = "231124.1"
 
 pub_version = "0.1.dev1"
 
@@ -90,7 +90,16 @@ def get_opts(argv) -> AppOptions:
     prog_list = []
     for cmd in args.run_cmds:
         if cmd:
-            usage_tag = f"usage: {Path(cmd.split()[0]).stem}"
+            cmd_path = Path(cmd.split()[0])
+            cmd_name = cmd_path.stem
+
+            #  If running __init__.py in a module then substitue the
+            #  module name.
+            if cmd_name == "__init__":
+                cmd_name = cmd_path.parent.name
+
+            usage_tag = f"usage: {cmd_name}"
+
             prog_list.append((cmd, usage_tag))
 
     opts = AppOptions(
@@ -133,6 +142,12 @@ def get_help_text(run_cmd):
     except Exception as e:
         # TODO: What exceptions to expect/handle?
         raise e
+
+    #  If running __init__.py in a module then substitue the module name.
+    cmd_path = Path(run_cmd)
+    if cmd_path.name == "__init__.py":
+        s = s.replace("__init__.py", cmd_path.parent.name)
+
     return s
 
 
