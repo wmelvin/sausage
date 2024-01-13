@@ -1,7 +1,7 @@
-import pytest
-
 from pathlib import Path
 from textwrap import dedent
+
+import pytest
 
 import sausage
 
@@ -16,7 +16,7 @@ def test_main_wo_args():
 def test_get_opts():
     argv = ["sausage.py", "doc_name.md", "cmd1", "cmd2"]
     opts = sausage.get_opts(argv)
-    assert "doc_name.md" == str(opts.doc_path.name)
+    assert str(opts.doc_path.name) == "doc_name.md"
     assert ("cmd1", "usage: cmd1") in opts.programs
     assert ("cmd2", "usage: cmd2") in opts.programs
     assert opts.indent_level == 0
@@ -58,7 +58,7 @@ def test_index_usage_section_2(get_usage_params):
 
 def test_get_help_lines(monkeypatch):
     def mock_get_help_text(run_cmd):
-        s = dedent(
+        return dedent(
             """
             someapp version 1.2.3"
 
@@ -67,7 +67,6 @@ def test_get_help_lines(monkeypatch):
             someapp does something.
             """
         )
-        return s
 
     monkeypatch.setattr(sausage, "get_help_text", mock_get_help_text)
 

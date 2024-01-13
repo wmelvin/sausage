@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
 
-from collections import namedtuple
-from datetime import datetime
-from pathlib import Path
-
 import argparse
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
+from typing import NamedTuple
+
+app_version = "2024.01.1"
+
+app_title = f"sausage.py - something about usage - version {app_version}"
 
 
-mod_version = "231124.1"
+class AppOptions(NamedTuple):
+    doc_path: Path
+    programs: list
+    indent_level: int
+    diff_tool: str
+    usage_only: bool
 
-pub_version = "0.1.dev1"
-
-app_title = (
-    "sausage.py - something about usage - "
-    f"version {pub_version} (mod {mod_version})"
-)
-
-AppOptions = namedtuple(
-    "AppOptions", "doc_path, programs, indent_level, diff_tool, usage_only"
-)
 
 warnings = []
 
 
 def get_opts(argv) -> AppOptions:
-
     ap = argparse.ArgumentParser(
         description="Command-line utility to capture the help/usage message "
         "from a program that has a command-line interface. The help text is "
@@ -102,11 +99,9 @@ def get_opts(argv) -> AppOptions:
 
             prog_list.append((cmd, usage_tag))
 
-    opts = AppOptions(
+    return AppOptions(
         doc_path, prog_list, args.n_spaces, args.diff_cmd, args.usage_only
     )
-
-    return opts
 
 
 def run_compare(run_cmd, left_file, right_file):
@@ -115,10 +110,11 @@ def run_compare(run_cmd, left_file, right_file):
     print(f"Run process: {cmds}")
     try:
         result = subprocess.run(
-            cmds,
+            cmds,  # noqa: S603
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
+            check=True,
         )
     except Exception as e:
         # TODO: What exceptions to expect/handle?
@@ -133,10 +129,11 @@ def get_help_text(run_cmd):
     print(f"Run process: {cmds}")
     try:
         result = subprocess.run(
-            cmds,
+            cmds,  # noqa: S603
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
+            check=True,
         )
         s = result.stdout.rstrip()
     except Exception as e:
@@ -181,7 +178,7 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
     for ix, line in enumerate(doc_lines):
         s = line.strip()
 
-        if s.startswith(tbt) and not (6 < len(s) and s.endswith(tbt)):
+        if s.startswith(tbt) and not (len(s) > 6 and s.endswith(tbt)):  # noqa: PLR2004
             tbt_lines.append(ix)
 
         #  Match on usage_tag is case-insensitive.
@@ -189,16 +186,13 @@ def index_usage_section(doc_lines, doc_path, usage_tag):
             usage_lines.append(ix)
 
     if not usage_lines:
-        warnings.append(
-            f"WARNING: No reference to '{usage_tag}' found in document."
-        )
+        warnings.append(f"WARNING: No reference to '{usage_tag}' found in document.")
         warnings.append("Cannot process help/usage for this program.")
         return None, None
 
-    if 1 < len(usage_lines):
+    if len(usage_lines) > 1:
         warnings.append(
-            f"WARNING: More than one reference to '{usage_tag}' "
-            "found in document."
+            f"WARNING: More than one reference to '{usage_tag}' found in document."
         )
         warnings.append("Cannot process help/usage for this program.")
         return None, None
@@ -233,10 +227,10 @@ def write_output(opts: AppOptions, out_lines):
     out_name = f"{opts.doc_path.stem}_MODIFIED_{ds}{opts.doc_path.suffix}"
     out_path = Path(opts.doc_path).parent.joinpath(out_name)
 
-    assert not out_path.exists()
+    assert not out_path.exists()  # noqa: S101
 
     print(f"\nSaving '{out_path}'")
-    with open(out_path, "w") as out_file:
+    with out_path.open("w") as out_file:
         for s in out_lines:
             out_file.write(f"{s}\n")
     return str(out_path)
@@ -253,7 +247,7 @@ def main(argv):
         sys.stderr.write(f"\nERROR: Cannot find '{opts.doc_path}'\n")
         return 1
 
-    with open(opts.doc_path, "r") as f:
+    with opts.doc_path.open() as f:
         orig_lines = [s.rstrip() for s in f.readlines()]
 
     doc_lines = orig_lines[:]
@@ -261,9 +255,7 @@ def main(argv):
     for run_cmd, usage_tag in opts.programs:
         ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
         if ia is not None:
-            help_lines = get_help_lines(
-                run_cmd, opts.indent_level, opts.usage_only
-            )
+            help_lines = get_help_lines(run_cmd, opts.indent_level, opts.usage_only)
             a = doc_lines[: ia + 1]
             b = doc_lines[ib:]
             doc_lines = a + help_lines + b
