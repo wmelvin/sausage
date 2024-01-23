@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
+import shutil
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
 
-app_version = "2024.01.1"
+app_version = "2024.01.2"
 
 app_title = f"sausage.py - something about usage - version {app_version}"
 
@@ -18,12 +19,14 @@ class AppOptions(NamedTuple):
     indent_level: int
     diff_tool: str
     usage_only: bool
+    python_path: str
+    run_as_module: bool
 
 
 warnings = []
 
 
-def get_opts(argv) -> AppOptions:
+def get_opts(arglist=None) -> AppOptions:
     ap = argparse.ArgumentParser(
         description="Command-line utility to capture the help/usage message "
         "from a program that has a command-line interface. The help text is "
@@ -80,7 +83,22 @@ def get_opts(argv) -> AppOptions:
         "appears (not case-sensitive).",
     )
 
-    args = ap.parse_args(argv[1:])
+    ap.add_argument(
+        "--python-path",
+        dest="python_path",
+        action="store",
+        help="Path to the python executable to use to run Python commands."
+        "This is required if a Python file to be run is not executable.",
+    )
+
+    ap.add_argument(
+        "--module",
+        dest="run_as_module",
+        action="store_true",
+        help="Run commands as Python modules (invoke using python executable).",
+    )
+
+    args = ap.parse_args(arglist)
 
     doc_path = Path(args.doc_file).expanduser().resolve()
 
@@ -99,8 +117,35 @@ def get_opts(argv) -> AppOptions:
 
             prog_list.append((cmd, usage_tag))
 
+    if not prog_list:
+        sys.stderr.write("\nERROR: No commands to run were given.\n")
+        sys.exit(1)
+
+    python_path = args.python_path
+
+    # If the --module flag is set then a Python executable must run the
+    # module since it cannot be executed directly. If --python-path was
+    # not specified then try to find which one is available and use it.
+    # Otherwise exit with an error message.
+    if args.run_as_module and not python_path:
+        python_path = shutil.which("python3")
+        if not python_path:
+            python_path = shutil.which("python")
+            if not python_path:
+                sys.stderr.write(
+                    "\nERROR: Cannot find a Python interpreter to run the module. "
+                    "Use the --python-path option to specify which one to use.\n"
+                )
+                sys.exit(1)
+
     return AppOptions(
-        doc_path, prog_list, args.n_spaces, args.diff_cmd, args.usage_only
+        doc_path,
+        prog_list,
+        args.n_spaces,
+        args.diff_cmd,
+        args.usage_only,
+        python_path,
+        args.run_as_module,
     )
 
 
@@ -114,7 +159,7 @@ def run_compare(run_cmd, left_file, right_file):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            check=True,
+            check=False,
         )
     except Exception as e:
         # TODO: What exceptions to expect/handle?
@@ -122,10 +167,13 @@ def run_compare(run_cmd, left_file, right_file):
     print(f"Process return code: {result.returncode}")
 
 
-def get_help_text(run_cmd):
+def get_help_text(run_cmd, opts: AppOptions):
     print("\nGetting usage (help) message from command.")
     cmds = run_cmd.split()
     cmds.append("-h")
+    if opts.python_path:
+        cmds = [opts.python_path, *cmds]
+
     print(f"Run process: {cmds}")
     try:
         result = subprocess.run(
@@ -148,11 +196,11 @@ def get_help_text(run_cmd):
     return s
 
 
-def get_help_lines(run_cmd, indent_level, usage_only):
-    text = get_help_text(run_cmd)
-    spaces = " " * indent_level
+def get_help_lines(run_cmd, opts: AppOptions):
+    text = get_help_text(run_cmd, opts)
+    spaces = " " * opts.indent_level
     lines = []
-    usage_found = not usage_only
+    usage_found = not opts.usage_only
     for line in text.split("\n"):
         if not usage_found:
             usage_found = "usage:" in line.lower()
@@ -236,16 +284,16 @@ def write_output(opts: AppOptions, out_lines):
     return str(out_path)
 
 
-def main(argv):
+def main(arglist=None):
     print(f"\n{app_title}\n")
 
-    opts = get_opts(argv)
+    opts = get_opts(arglist)
 
     print(f"\nReading '{opts.doc_path}'")
 
     if not opts.doc_path.exists():
         sys.stderr.write(f"\nERROR: Cannot find '{opts.doc_path}'\n")
-        return 1
+        sys.exit(1)
 
     with opts.doc_path.open() as f:
         orig_lines = [s.rstrip() for s in f.readlines()]
@@ -255,7 +303,7 @@ def main(argv):
     for run_cmd, usage_tag in opts.programs:
         ia, ib = index_usage_section(doc_lines, opts.doc_path, usage_tag)
         if ia is not None:
-            help_lines = get_help_lines(run_cmd, opts.indent_level, opts.usage_only)
+            help_lines = get_help_lines(run_cmd, opts)
             a = doc_lines[: ia + 1]
             b = doc_lines[ib:]
             doc_lines = a + help_lines + b
@@ -278,4 +326,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    main()
