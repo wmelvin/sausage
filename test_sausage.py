@@ -190,7 +190,6 @@ def make_test_py_module(tmp_path: Path) -> tuple[Path, Path]:
             ap = argparse.ArgumentParser(description="This is a test")
             ap.add_argument("some_file", action="store", help="Name of some file")
             args = ap.parse_args(None)
-            ap.print_help()
             print(args)
             """
         )
