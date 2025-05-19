@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
 
-app_version = "2024.01.2"
+app_version = "2025.05.1"
 
 app_title = f"sausage.py - something about usage - version {app_version}"
 
@@ -154,8 +154,8 @@ def run_compare(run_cmd, left_file, right_file):
     cmds = [run_cmd, left_file, right_file]
     print(f"Run process: {cmds}")
     try:
-        result = subprocess.run(
-            cmds,  # noqa: S603
+        result = subprocess.run(  # noqa: S603
+            cmds,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
@@ -176,8 +176,8 @@ def get_help_text(run_cmd, opts: AppOptions):
 
     print(f"Run process: {cmds}")
     try:
-        result = subprocess.run(
-            cmds,  # noqa: S603
+        result = subprocess.run(  # noqa: S603
+            cmds,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
