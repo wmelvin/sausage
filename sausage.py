@@ -8,7 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
 
-app_version = "2025.05.1"
+#  Using calver (YYYY.0M.MICRO). Update pyproject.toml on new version.
+app_version = "2025.12.1"
 
 app_title = f"sausage.py - something about usage - version {app_version}"
 

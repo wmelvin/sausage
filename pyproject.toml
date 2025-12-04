@@ -1,9 +1,9 @@
 [project]
 name = "sausage"
-version = "2025.05.1"
+version = "2025.12.1"
 description = 'Command-line utility to capture the help/usage message from a program that has a command-line interface.'
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 
 [tool.ruff]
