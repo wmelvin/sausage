@@ -1,5 +1,16 @@
 # sausage #
 
+> **UPDATE 2026-06-20:** I am archiving this repository because I no longer use this tool. I use a [Justfile](https://github.com/casey/just) to provide command-line shortcuts in most of my Python projects now. Adding a command that redirects a program's `--help` message to `temp.txt`, as shown below, makes it easy to manually update the README. No need to mess with the *sausage*.
+
+```makefile
+...
+@help:
+  uv run fbx -h > temp.txt
+...
+```
+
+---
+
 ## something about usage ##
 
 **sausage.py** is a command-line tool that does some stuff as described in the help/usage message below.
